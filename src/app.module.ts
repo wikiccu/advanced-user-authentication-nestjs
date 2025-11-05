@@ -8,6 +8,8 @@ import { UserModule } from './user/user.module';
 import { JwtModule } from './jwt/jwt.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth/jwt-auth.guard';
+import { RoleModule } from './role/role.module';
+import { PermissionModule } from './permission/permission.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth/jwt-auth.guard';
     UserModule,
     JwtModule,
     AuthModule,
+    RoleModule,
+    PermissionModule,
   ],
   controllers: [AppController],
   providers: [
