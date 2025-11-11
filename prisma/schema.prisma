@@ -26,6 +26,7 @@ model User {
   // Relations
   userRoles     UserRole[]
   refreshTokens RefreshToken[]
+  auditLogs     AuditLog[]
 
   @@map("users")
 }
@@ -109,4 +110,29 @@ model RefreshToken {
   @@index([token])
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+// Audit Log Model
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  action    String   // e.g., "login", "logout", "create_user", "update_role"
+  resource  String?  // e.g., "user", "role", "permission"
+  resourceId String? @map("resource_id")
+  ipAddress String?  @map("ip_address")
+  userAgent String?  @map("user_agent")
+  method    String?  // HTTP method
+  path      String?  // Request path
+  statusCode Int?    @map("status_code")
+  metadata  String?  // JSON string for additional data
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
