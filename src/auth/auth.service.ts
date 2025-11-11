@@ -6,6 +6,7 @@ import {
 import { UserService } from '../user/user.service';
 import { JwtService } from '../jwt/jwt.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { BlacklistService } from './blacklist/blacklist.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
@@ -19,6 +20,7 @@ export class AuthService {
     private userService: UserService,
     private jwtService: JwtService,
     private prisma: PrismaService,
+    private blacklistService: BlacklistService,
   ) {}
 
   /**
@@ -76,9 +78,9 @@ export class AuthService {
   }
 
   /**
-   * Logout user (revoke refresh token)
+   * Logout user (revoke refresh token and blacklist access token)
    */
-  async logout(refreshToken: string): Promise<void> {
+  async logout(refreshToken: string, accessToken?: string): Promise<void> {
     try {
       // Verify and decode refresh token
       const payload = await this.jwtService.verifyRefreshToken(refreshToken);
@@ -94,6 +96,11 @@ export class AuthService {
           revokedAt: new Date(),
         },
       });
+
+      // Blacklist access token if provided
+      if (accessToken) {
+        await this.blacklistService.addToBlacklist(accessToken);
+      }
     } catch (error) {
       // Token is invalid or already revoked, ignore
       throw new BadRequestException('Invalid refresh token');

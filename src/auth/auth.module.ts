@@ -10,6 +10,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { PermissionsGuard } from './guards/permissions.guard';
+import { BlacklistService } from './blacklist/blacklist.service';
 
 @Module({
   imports: [
@@ -19,7 +20,7 @@ import { PermissionsGuard } from './guards/permissions.guard';
     PermissionModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
   ],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard, RolesGuard, PermissionsGuard],
+  providers: [AuthService, JwtStrategy, JwtAuthGuard, RolesGuard, PermissionsGuard, BlacklistService],
   controllers: [AuthController],
   exports: [AuthService, JwtAuthGuard, RolesGuard, PermissionsGuard],
 })

@@ -4,21 +4,32 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { JwtPayload } from '../../jwt/interfaces/jwt-payload.interface';
 import { UserService } from '../../user/user.service';
+import { BlacklistService } from '../blacklist/blacklist.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
     private configService: ConfigService,
     private userService: UserService,
+    private blacklistService: BlacklistService,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: configService.get<string>('JWT_SECRET') || 'default-secret',
+      passReqToCallback: true,
     });
   }
 
-  async validate(payload: JwtPayload) {
+  async validate(req: any, payload: JwtPayload) {
+    // Extract token from request
+    const token = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
+
+    // Check if token is blacklisted
+    if (token && this.blacklistService.isBlacklisted(token)) {
+      throw new UnauthorizedException('Token has been revoked');
+    }
+
     // Validate that the user exists and is active
     const user = await this.userService.findByEmail(payload.email);
 
