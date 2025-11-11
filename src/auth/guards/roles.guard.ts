@@ -49,13 +49,24 @@ export class RolesGuard implements CanActivate {
     // Get user roles
     const userRoles = await this.roleService.getUserRoles(user.id);
 
-    // Extract role names
-    const userRoleNames = userRoles.map((userRole) => userRole.role.name);
+    // Extract role names and build full hierarchy for each role
+    const userRoleNames = new Set<string>();
+    for (const userRole of userRoles) {
+      const roleName = userRole.role.name;
+      userRoleNames.add(roleName);
+      
+      // Get all parent roles in hierarchy
+      if (userRole.role.id) {
+        const parentRoles = await this.roleService.getParentRoles(userRole.role.id);
+        parentRoles.forEach((parentRole) => userRoleNames.add(parentRole));
+      }
+    }
 
-    // Check if user has at least one of the required roles
-    const hasRequiredRole = requiredRoles.some((role) =>
-      userRoleNames.includes(role),
-    );
+    // Check if user has at least one of the required roles (or parent role in hierarchy)
+    const hasRequiredRole = requiredRoles.some((requiredRole) => {
+      // Direct match or parent role match
+      return userRoleNames.has(requiredRole);
+    });
 
     if (!hasRequiredRole) {
       throw new ForbiddenException(

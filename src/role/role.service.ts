@@ -26,11 +26,23 @@ export class RoleService {
       throw new ConflictException('Role with this name already exists');
     }
 
+    // Validate parent role if provided
+    if (createRoleDto.parentRoleId) {
+      const parentRole = await this.prisma.role.findUnique({
+        where: { id: createRoleDto.parentRoleId },
+      });
+
+      if (!parentRole) {
+        throw new NotFoundException('Parent role not found');
+      }
+    }
+
     // Create role
     const role = await this.prisma.role.create({
       data: {
         name: createRoleDto.name,
         description: createRoleDto.description,
+        parentRoleId: createRoleDto.parentRoleId,
       },
     });
 
@@ -103,6 +115,28 @@ export class RoleService {
 
       if (roleWithSameName) {
         throw new ConflictException('Role with this name already exists');
+      }
+    }
+
+    // Validate parent role if provided
+    if (updateRoleDto.parentRoleId) {
+      // Prevent self-reference
+      if (updateRoleDto.parentRoleId === id) {
+        throw new ConflictException('Role cannot be its own parent');
+      }
+
+      const parentRole = await this.prisma.role.findUnique({
+        where: { id: updateRoleDto.parentRoleId },
+      });
+
+      if (!parentRole) {
+        throw new NotFoundException('Parent role not found');
+      }
+
+      // Prevent circular references (check if parent role would create a cycle)
+      const parentHierarchy = await this.getParentRoles(updateRoleDto.parentRoleId);
+      if (parentHierarchy.includes(existingRole.name)) {
+        throw new ConflictException('Circular reference detected in role hierarchy');
       }
     }
 
@@ -212,9 +246,78 @@ export class RoleService {
                 permission: true,
               },
             },
+            parentRole: true,
+            childRoles: true,
           },
         },
       },
     });
+  }
+
+  /**
+   * Get all parent roles (hierarchy chain)
+   */
+  async getParentRoles(roleId: string): Promise<string[]> {
+    const role = await this.prisma.role.findUnique({
+      where: { id: roleId },
+      include: { parentRole: true },
+    });
+
+    if (!role || !role.parentRoleId) {
+      return [];
+    }
+
+    const parentRoles = [role.parentRole.name];
+    const grandParentRoles = await this.getParentRoles(role.parentRoleId);
+    return [...parentRoles, ...grandParentRoles];
+  }
+
+  /**
+   * Get all child roles (descendants)
+   */
+  async getChildRoles(roleId: string): Promise<string[]> {
+    const role = await this.prisma.role.findUnique({
+      where: { id: roleId },
+      include: { childRoles: true },
+    });
+
+    if (!role) {
+      return [];
+    }
+
+    const childRoleNames: string[] = [];
+    for (const childRole of role.childRoles) {
+      childRoleNames.push(childRole.name);
+      const grandChildRoles = await this.getChildRoles(childRole.id);
+      childRoleNames.push(...grandChildRoles);
+    }
+
+    return childRoleNames;
+  }
+
+  /**
+   * Get all roles in hierarchy (parent + self + children)
+   */
+  async getRoleHierarchy(roleId: string): Promise<string[]> {
+    const role = await this.prisma.role.findUnique({
+      where: { id: roleId },
+    });
+
+    if (!role) {
+      return [];
+    }
+
+    const parentRoles = await this.getParentRoles(roleId);
+    const childRoles = await this.getChildRoles(roleId);
+
+    return [...parentRoles, role.name, ...childRoles];
+  }
+
+  /**
+   * Check if role has parent role
+   */
+  async hasParentRole(roleId: string, parentRoleName: string): Promise<boolean> {
+    const parentRoles = await this.getParentRoles(roleId);
+    return parentRoles.includes(parentRoleName);
   }
 }

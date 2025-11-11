@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_FILTER } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth/jwt-auth.guard';
 import { RoleModule } from './role/role.module';
 import { PermissionModule } from './permission/permission.module';
+import { HttpExceptionFilter } from './common/filters/http-exception/http-exception.filter';
 
 @Module({
   imports: [
@@ -30,6 +31,10 @@ import { PermissionModule } from './permission/permission.module';
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_FILTER,
+      useClass: HttpExceptionFilter,
     },
   ],
 })

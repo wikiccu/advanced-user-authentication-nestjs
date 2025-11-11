@@ -158,7 +158,7 @@ export class PermissionService {
   }
 
   /**
-   * Get all permissions for a user (through roles)
+   * Get all permissions for a user (through roles with inheritance)
    */
   async getUserPermissions(userId: string) {
     // Get user roles
@@ -172,21 +172,85 @@ export class PermissionService {
                 permission: true,
               },
             },
+            parentRole: {
+              include: {
+                rolePermissions: {
+                  include: {
+                    permission: true,
+                  },
+                },
+                parentRole: true,
+              },
+            },
           },
         },
       },
     });
 
-    // Extract unique permissions
+    // Extract unique permissions (including inherited from parent roles)
     const permissionsMap = new Map();
-    userRoles.forEach((userRole) => {
-      userRole.role.rolePermissions.forEach((rolePermission) => {
+    
+    const addPermissionsFromRole = (role: any) => {
+      // Add direct permissions
+      role.rolePermissions?.forEach((rolePermission: any) => {
         const permission = rolePermission.permission;
         if (!permissionsMap.has(permission.id)) {
           permissionsMap.set(permission.id, permission);
         }
       });
+
+      // Add inherited permissions from parent role
+      if (role.parentRole) {
+        addPermissionsFromRole(role.parentRole);
+      }
+    };
+
+    userRoles.forEach((userRole) => {
+      addPermissionsFromRole(userRole.role);
     });
+
+    return Array.from(permissionsMap.values());
+  }
+
+  /**
+   * Get all permissions for a role (including inherited from parent)
+   */
+  async getRolePermissionsWithInheritance(roleId: string) {
+    const role = await this.prisma.role.findUnique({
+      where: { id: roleId },
+      include: {
+        rolePermissions: {
+          include: {
+            permission: true,
+          },
+        },
+        parentRole: true,
+      },
+    });
+
+    if (!role) {
+      return [];
+    }
+
+    const permissionsMap = new Map();
+
+    // Add direct permissions
+    role.rolePermissions.forEach((rolePermission) => {
+      const permission = rolePermission.permission;
+      permissionsMap.set(permission.id, permission);
+    });
+
+    // Add inherited permissions from parent role
+    if (role.parentRoleId) {
+      const parentPermissions = await this.getRolePermissionsWithInheritance(
+        role.parentRoleId,
+      );
+      parentPermissions.forEach((permission) => {
+        if (!permissionsMap.has(permission.id)) {
+          permissionsMap.set(permission.id, permission);
+        }
+      });
+    }
 
     return Array.from(permissionsMap.values());
   }

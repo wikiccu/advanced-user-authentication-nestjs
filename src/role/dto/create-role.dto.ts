@@ -8,5 +8,9 @@ export class CreateRoleDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  parentRoleId?: string;
 }
 

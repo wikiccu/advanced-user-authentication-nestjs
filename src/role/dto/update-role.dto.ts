@@ -9,5 +9,9 @@ export class UpdateRoleDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  parentRoleId?: string;
 }
 

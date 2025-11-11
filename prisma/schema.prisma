@@ -35,12 +35,15 @@ model Role {
   id          String   @id @default(cuid())
   name        String   @unique
   description String?
+  parentRoleId String? @map("parent_role_id")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   // Relations
   userRoles        UserRole[]
   rolePermissions RolePermission[]
+  parentRole      Role?   @relation("RoleHierarchy", fields: [parentRoleId], references: [id], onDelete: SetNull)
+  childRoles      Role[]  @relation("RoleHierarchy")
 
   @@map("roles")
 }
