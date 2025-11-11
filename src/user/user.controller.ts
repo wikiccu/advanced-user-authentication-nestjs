@@ -11,6 +11,7 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import { UpdateUserDto, ChangePasswordDto, AssignRoleDto } from './dto';
 import { UserResponseDto } from './dto/user-response.dto';
@@ -20,6 +21,8 @@ import { Permissions } from '../auth/decorators/permissions.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 
+@ApiTags('users')
+@ApiBearerAuth('JWT-auth')
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
@@ -29,6 +32,8 @@ export class UserController {
    */
   @Get('profile')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile retrieved successfully', type: UserResponseDto })
   async getProfile(@CurrentUser() user: any): Promise<UserResponseDto> {
     return this.userService.findById(user.id);
   }
@@ -38,6 +43,8 @@ export class UserController {
    */
   @Put('profile')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully', type: UserResponseDto })
   async updateProfile(
     @CurrentUser() user: any,
     @Body() updateUserDto: UpdateUserDto,
@@ -50,6 +57,9 @@ export class UserController {
    */
   @Patch('profile/password')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change current user password' })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  @ApiResponse({ status: 401, description: 'Current password is incorrect' })
   async changePassword(
     @CurrentUser() user: any,
     @Body() changePasswordDto: ChangePasswordDto,
@@ -66,6 +76,9 @@ export class UserController {
   @Roles('admin')
   @Permissions('user:read')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get all users (admin only)' })
+  @ApiResponse({ status: 200, description: 'Users retrieved successfully', type: [UserResponseDto] })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   async getAllUsers(): Promise<UserResponseDto[]> {
     return this.userService.findAll();
   }
@@ -78,6 +91,10 @@ export class UserController {
   @Roles('admin')
   @Permissions('user:read')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get user by ID (admin only)' })
+  @ApiResponse({ status: 200, description: 'User retrieved successfully', type: UserResponseDto })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   async getUserById(@Param('id') id: string): Promise<UserResponseDto> {
     return this.userService.findById(id);
   }
@@ -90,6 +107,10 @@ export class UserController {
   @Roles('admin')
   @Permissions('user:update')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update user by ID (admin only)' })
+  @ApiResponse({ status: 200, description: 'User updated successfully', type: UserResponseDto })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   async updateUser(
     @Param('id') id: string,
     @Body() updateUserDto: UpdateUserDto,
@@ -105,6 +126,10 @@ export class UserController {
   @Roles('admin')
   @Permissions('user:delete')
   @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete user by ID (admin only)' })
+  @ApiResponse({ status: 200, description: 'User deleted successfully' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   async deleteUser(@Param('id') id: string): Promise<{ message: string }> {
     await this.userService.delete(id);
     return { message: 'User deleted successfully' };
