@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
+import { AssignRoleDto } from './dto/assign-role.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 
 @Injectable()
@@ -188,5 +189,99 @@ export class UserService {
     });
 
     return users.map((user) => new UserResponseDto(user));
+  }
+
+  /**
+   * Assign roles to user
+   */
+  async assignRoles(
+    userId: string,
+    assignRoleDto: AssignRoleDto,
+  ): Promise<UserResponseDto> {
+    // Check if user exists
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Verify all roles exist
+    const roles = await this.prisma.role.findMany({
+      where: {
+        id: {
+          in: assignRoleDto.roleIds,
+        },
+      },
+    });
+
+    if (roles.length !== assignRoleDto.roleIds.length) {
+      throw new NotFoundException('One or more roles not found');
+    }
+
+    // Remove existing roles
+    await this.prisma.userRole.deleteMany({
+      where: { userId },
+    });
+
+    // Assign new roles
+    await this.prisma.userRole.createMany({
+      data: assignRoleDto.roleIds.map((roleId) => ({
+        userId,
+        roleId,
+      })),
+    });
+
+    // Return updated user
+    const updatedUser = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    return new UserResponseDto(updatedUser!);
+  }
+
+  /**
+   * Get user with roles
+   */
+  async findWithRoles(id: string) {
+    return this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        userRoles: {
+          include: {
+            role: {
+              include: {
+                rolePermissions: {
+                  include: {
+                    permission: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Get user roles
+   */
+  async getUserRoles(userId: string) {
+    return this.prisma.userRole.findMany({
+      where: { userId },
+      include: {
+        role: {
+          include: {
+            rolePermissions: {
+              include: {
+                permission: true,
+              },
+            },
+          },
+        },
+      },
+    });
   }
 }

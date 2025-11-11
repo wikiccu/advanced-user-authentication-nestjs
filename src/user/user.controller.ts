@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Post,
   Put,
   Patch,
   Delete,
@@ -11,7 +12,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { UserService } from './user.service';
-import { UpdateUserDto, ChangePasswordDto } from './dto';
+import { UpdateUserDto, ChangePasswordDto, AssignRoleDto } from './dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -107,5 +108,44 @@ export class UserController {
   async deleteUser(@Param('id') id: string): Promise<{ message: string }> {
     await this.userService.delete(id);
     return { message: 'User deleted successfully' };
+  }
+
+  /**
+   * Get user roles list (admin only) - must come before :id/roles
+   */
+  @Get(':id/roles/list')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin')
+  @Permissions('user:read', 'role:read')
+  @HttpCode(HttpStatus.OK)
+  async getUserRoles(@Param('id') id: string) {
+    return this.userService.getUserRoles(id);
+  }
+
+  /**
+   * Get user with roles (admin only)
+   */
+  @Get(':id/roles')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin')
+  @Permissions('user:read', 'role:read')
+  @HttpCode(HttpStatus.OK)
+  async getUserWithRoles(@Param('id') id: string) {
+    return this.userService.findWithRoles(id);
+  }
+
+  /**
+   * Assign roles to user (admin only)
+   */
+  @Post(':id/roles')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles('admin')
+  @Permissions('user:update', 'role:read')
+  @HttpCode(HttpStatus.OK)
+  async assignRoles(
+    @Param('id') id: string,
+    @Body() assignRoleDto: AssignRoleDto,
+  ): Promise<UserResponseDto> {
+    return this.userService.assignRoles(id, assignRoleDto);
   }
 }
